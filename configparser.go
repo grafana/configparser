@@ -68,17 +68,16 @@ func Read(filePath string) (*Configuration, error) {
 
 	scanner := bufio.NewScanner(bufio.NewReader(file))
 	for scanner.Scan() {
-		// TODO: maybe trim spaces here
-		line := scanner.Text()
-		if (len(line) < 0) {
+		line := strings.TrimSpace(scanner.Text())
+		if len(line) < 0 {
 			continue
-		}			
+		}
 
 		if isSection(line) {
-			fqn := strings.Trim(line, " []")
+			fqn := strings.Trim(line, "[]")
 			activeSection = config.addSection(fqn)
 			continue
-		} 
+		}
 		// save options and comments
 		addOption(activeSection, line)
 	}
