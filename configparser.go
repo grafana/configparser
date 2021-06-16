@@ -27,7 +27,7 @@ import (
 	"sync"
 )
 
-// Delimiter is the delimiter to be used between section key and values.
+// Delimiter is the delimiter to be used between section key and values when rendering an option string
 var Delimiter = "="
 
 // Configuration represents a configuration file with its sections and options.
