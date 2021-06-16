@@ -33,6 +33,7 @@ var Delimiter = "="
 // Configuration represents a configuration file with its sections and options.
 type Configuration struct {
 	filePath        string                // configuration file
+	global          *Section              // for settings that don't go into a named section
 	sections        map[string]*list.List // fully qualified section name as key. the list serves to support many repeated (same name) sections
 	orderedSections []string              // track the order of section names as they are parsed
 	mutex           sync.RWMutex
@@ -41,6 +42,7 @@ type Configuration struct {
 // A Section in a configuration.
 type Section struct {
 	fqn            string
+	isGlobal       bool
 	options        map[string]string
 	orderedOptions []string // track the order of the options as they are parsed
 	mutex          sync.RWMutex
@@ -62,7 +64,7 @@ func Read(filePath string) (*Configuration, error) {
 	defer file.Close()
 
 	config := newConfiguration(filePath)
-	activeSection := config.addSection("global")
+	activeSection := config.global
 
 	scanner := bufio.NewScanner(bufio.NewReader(file))
 	for scanner.Scan() {
@@ -114,6 +116,7 @@ func Save(c *Configuration, filePath string) (err error) {
 	}()
 	c.mutex.Unlock()
 
+	global := c.global
 	s, err := c.AllSections()
 	if err != nil {
 		return err
@@ -122,6 +125,7 @@ func Save(c *Configuration, filePath string) (err error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
+	w.WriteString(global.String())
 	for _, v := range s {
 		w.WriteString(v.String())
 	}
@@ -275,6 +279,7 @@ func (c *Configuration) String() string {
 	defer c.mutex.RUnlock()
 
 	var parts []string
+	parts = append(parts, c.global.String())
 	for _, fqn := range c.orderedSections {
 		sections, _ := c.Sections(fqn)
 		for _, section := range sections {
@@ -366,11 +371,10 @@ func (s *Section) String() string {
 	defer s.mutex.RUnlock()
 
 	var parts []string
-	sName := "[" + s.fqn + "]\n"
-	if s.fqn == "global" {
-		sName = ""
+
+	if !s.isGlobal {
+		parts = append(parts, "["+s.fqn+"]\n")
 	}
-	parts = append(parts, sName)
 
 	for _, opt := range s.orderedOptions {
 		value := s.options[opt]
@@ -388,10 +392,20 @@ func (s *Section) String() string {
 // Private
 //
 
+// newSection creates a new, blank section
+func newSection(fqn string, isGlobal bool) *Section {
+	return &Section{
+		fqn:      fqn,
+		isGlobal: isGlobal,
+		options:  make(map[string]string),
+	}
+}
+
 // newConfiguration creates a new Configuration instance.
 func newConfiguration(filePath string) *Configuration {
 	return &Configuration{
 		filePath: filePath,
+		global:   newSection("", true),
 		sections: make(map[string]*list.List),
 	}
 }
@@ -429,7 +443,7 @@ func parseOption(option string) (opt, value string) {
 }
 
 func (c *Configuration) addSection(fqn string) *Section {
-	section := &Section{fqn: fqn, options: make(map[string]string)}
+	section := newSection(fqn, false)
 
 	var lst *list.List
 	if lst = c.sections[fqn]; lst == nil {
