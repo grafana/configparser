@@ -33,7 +33,7 @@ var Delimiter = "="
 // Configuration represents a configuration file with its sections and options.
 type Configuration struct {
 	filePath        string                // configuration file
-	sections        map[string]*list.List // fully qualified section name as key
+	sections        map[string]*list.List // fully qualified section name as key. the list serves to support many repeated (same name) sections
 	orderedSections []string              // track the order of section names as they are parsed
 	mutex           sync.RWMutex
 }
@@ -255,18 +255,18 @@ func (c *Configuration) Find(regex string) ([]*Section, error) {
 }
 
 // PrintSection prints a text representation of all sections matching the fully qualified section name.
-func (c *Configuration) PrintSection(fqn string) {
+func (c *Configuration) PrintSection(fqn string) error {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
 	sections, err := c.Sections(fqn)
-	if err == nil {
-		for _, section := range sections {
-			fmt.Print(section)
-		}
-	} else {
-		fmt.Printf("Unable to find section %v\n", err)
+	if err != nil {
+		return err
 	}
+	for _, section := range sections {
+		fmt.Print(section)
+	}
+	return nil
 }
 
 // String returns the text representation of a parsed configuration file.
@@ -320,7 +320,7 @@ func (s *Section) SetValueFor(option string, value string) string {
 	return oldValue
 }
 
-// Add adds a new option to the section. Adding and existing option will overwrite the old one.
+// Add adds a new option to the section. Adding an existing option will overwrite the old one.
 // The old value is returned
 func (s *Section) Add(option string, value string) (oldValue string) {
 	s.mutex.Lock()
@@ -401,17 +401,14 @@ func isSection(section string) bool {
 }
 
 func addOption(s *Section, option string) {
-	var opt, value string
-	if opt, value = parseOption(option); value != "" {
-		s.options[opt] = value
-	} else {
-		// only insert keys. ex list of hosts
-		s.options[opt] = ""
-	}
+	opt, value := parseOption(option)
+	s.options[opt] = value
 
 	s.orderedOptions = append(s.orderedOptions, opt)
 }
 
+// parseOption parses a string like "opt=value", "opt:value" or "opt", removing extraneous whitespace
+// (in the 3rd case only opt is set and value is "")
 func parseOption(option string) (opt, value string) {
 
 	split := func(i int, delim string) (opt, value string) {
