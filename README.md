@@ -92,4 +92,4 @@ func Example() {
 
 notes
 =====
-*  empty section names are legal.  Any characters are allowed. All '[' and ']' at either side of the line are stripped. comments are included in the section names and options. see https://github.com/alyu/configparser/issues/11
+*  empty section names are legal.  Any characters are allowed.

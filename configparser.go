@@ -81,7 +81,12 @@ func Read(fd io.Reader, filePath string) (*Configuration, error) {
 		}
 
 		if isSection(line) {
-			fqn := strings.Trim(line, "[]")
+			line = strings.Trim(line, "[")
+			i := strings.Index(line, "]")
+			if i == -1 {
+				return nil, fmt.Errorf("invalid section header %q", line)
+			}
+			fqn := line[:i]
 			activeSection = config.addSection(fqn)
 			continue
 		}
