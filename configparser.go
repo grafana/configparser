@@ -318,8 +318,8 @@ func (s *Section) SetValueFor(option string, value string) string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	var oldValue string
-	oldValue, s.options[option] = s.options[option], value
+	oldValue := s.options[option]
+	s.options[option] = value
 
 	return oldValue
 }
