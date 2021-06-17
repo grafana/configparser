@@ -90,6 +90,13 @@ func Read(fd io.Reader, filePath string) (*Configuration, error) {
 			activeSection = config.addSection(fqn)
 			continue
 		}
+
+		// [ and ] may not appear after other content (we already checked if it's a prefix above) unless it's a comment
+		if strings.Contains(line, "[") || strings.Contains(line, "]") {
+			if !strings.HasPrefix(line, "#") && !strings.HasPrefix(line, ";") {
+				return nil, fmt.Errorf("invalid line %q: [ and ] are reserved for section headers and this contains additional non-section header data", line)
+			}
+		}
 		// save options and comments
 		addOption(activeSection, line)
 	}
