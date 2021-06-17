@@ -8,7 +8,7 @@ import (
 
 // Read and modify a configuration file
 func Example() {
-	config, err := configparser.Read("/etc/config.ini")
+	config, err := configparser.ReadFile("/etc/config.ini")
 	if err != nil {
 		log.Fatal(err)
 	}

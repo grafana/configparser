@@ -20,6 +20,7 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"regexp"
@@ -53,8 +54,8 @@ func NewConfiguration() *Configuration {
 	return newConfiguration("")
 }
 
-// Read parses a specified configuration file and returns a Configuration instance.
-func Read(filePath string) (*Configuration, error) {
+// ReadFile parses a specified configuration file and returns a Configuration instance.
+func ReadFile(filePath string) (*Configuration, error) {
 	filePath = path.Clean(filePath)
 
 	file, err := os.Open(filePath)
@@ -62,11 +63,17 @@ func Read(filePath string) (*Configuration, error) {
 		return nil, err
 	}
 	defer file.Close()
+	return Read(file, filePath)
+}
+
+// Read reads the given reader into a new Configuration
+// filePath is set for any future persistency but is not used for reading
+func Read(fd io.Reader, filePath string) (*Configuration, error) {
 
 	config := newConfiguration(filePath)
 	activeSection := config.global
 
-	scanner := bufio.NewScanner(bufio.NewReader(file))
+	scanner := bufio.NewScanner(bufio.NewReader(fd))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if len(line) < 0 {
@@ -91,8 +98,6 @@ func Read(filePath string) (*Configuration, error) {
 
 // Save the Configuration to file. Creates a backup (.bak) if file already exists.
 func Save(c *Configuration, filePath string) (err error) {
-	c.mutex.Lock()
-
 	err = os.Rename(filePath, filePath+".bak")
 	if err != nil {
 		if !os.IsNotExist(err) { // fine if the file does not exists
@@ -109,11 +114,10 @@ func Save(c *Configuration, filePath string) (err error) {
 		err = f.Close()
 	}()
 
-	w := bufio.NewWriter(f)
-	defer func() {
-		err = w.Flush()
-	}()
-	c.mutex.Unlock()
+	return c.Write(f)
+}
+
+func (c *Configuration) Write(fd io.Writer) error {
 
 	global := c.global
 	s, err := c.AllSections()
@@ -121,15 +125,19 @@ func Save(c *Configuration, filePath string) (err error) {
 		return err
 	}
 
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	w := bufio.NewWriter(fd)
 
-	w.WriteString(global.String())
-	for _, v := range s {
-		w.WriteString(v.String())
+	_, err = w.WriteString(global.String())
+	if err != nil {
+		return err
 	}
-
-	return err
+	for _, v := range s {
+		_, err = w.WriteString(v.String())
+		if err != nil {
+			return err
+		}
+	}
+	return w.Flush()
 }
 
 // NewSection creates and adds a new Section with the specified name.

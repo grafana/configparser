@@ -326,7 +326,7 @@ func TestReadConfigFile(t *testing.T) {
 	t.Log("Reading test config " + ConfigFilePath)
 
 	var err error
-	gConfig, err = Read(ConfigFilePath)
+	gConfig, err = ReadFile(ConfigFilePath)
 	if err != nil {
 		t.Fatal(err)
 	}
