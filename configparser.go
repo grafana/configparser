@@ -119,8 +119,7 @@ func Save(c *Configuration, filePath string) (err error) {
 
 func (c *Configuration) Write(fd io.Writer) error {
 
-	global := c.global
-	s, err := c.AllSections()
+	global, s, err := c.AllSections()
 	if err != nil {
 		return err
 	}
@@ -140,7 +139,7 @@ func (c *Configuration) Write(fd io.Writer) error {
 	return w.Flush()
 }
 
-// NewSection creates and adds a new Section with the specified name.
+// NewSection creates and adds a new non-global Section with the specified name.
 func (c *Configuration) NewSection(fqn string) *Section {
 	return c.addSection(fqn)
 }
@@ -158,7 +157,7 @@ func (c *Configuration) SetFilePath(filePath string) {
 	c.filePath = filePath
 }
 
-// StringValue returns the string value for the specified section and option.
+// StringValue returns the string value for the specified non-global section and option.
 func (c *Configuration) StringValue(section, option string) (value string, err error) {
 	s, err := c.Section(section)
 	if err != nil {
@@ -168,7 +167,7 @@ func (c *Configuration) StringValue(section, option string) (value string, err e
 	return
 }
 
-// Delete deletes the specified sections matched by a regex name and returns the deleted sections.
+// Delete deletes the specified non-global sections matched by a regex name and returns the deleted sections.
 func (c *Configuration) Delete(regex string) (sections []*Section, err error) {
 	sections, err = c.Find(regex)
 	c.mutex.Lock()
@@ -193,7 +192,12 @@ func (c *Configuration) Delete(regex string) (sections []*Section, err error) {
 	return sections, err
 }
 
-// Section returns the first section matching the fully qualified section name.
+// GlobalSection returns the global section
+func (c *Configuration) GlobalSection() *Section {
+	return c.global
+}
+
+// Section returns the first non-global section matching the fully qualified section name.
 func (c *Configuration) Section(fqn string) (*Section, error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -207,12 +211,13 @@ func (c *Configuration) Section(fqn string) (*Section, error) {
 	return nil, errors.New("Unable to find " + fqn)
 }
 
-// AllSections returns a slice of all sections available.
-func (c *Configuration) AllSections() ([]*Section, error) {
-	return c.Sections("")
+// AllSections returns the global, as well as a slice of all non-global sections.
+func (c *Configuration) AllSections() (*Section, []*Section, error) {
+	s, err := c.Sections("")
+	return c.global, s, err
 }
 
-// Sections returns a slice of Sections matching the fully qualified section name.
+// Sections returns a slice of non-global Sections matching the fully qualified section name.
 func (c *Configuration) Sections(fqn string) ([]*Section, error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -244,7 +249,7 @@ func (c *Configuration) Sections(fqn string) ([]*Section, error) {
 	return sections, nil
 }
 
-// Find returns a slice of Sections matching the regexp against the section name.
+// Find returns a slice of non-global Sections matching the regexp against the section name.
 func (c *Configuration) Find(regex string) ([]*Section, error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -265,7 +270,7 @@ func (c *Configuration) Find(regex string) ([]*Section, error) {
 	return sections, nil
 }
 
-// PrintSection prints a text representation of all sections matching the fully qualified section name.
+// PrintSection prints a text representation of all non-global sections matching the fully qualified section name.
 func (c *Configuration) PrintSection(fqn string) error {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -449,6 +454,7 @@ func parseOption(option string) (opt, value string) {
 	return
 }
 
+// addSection adds a new non-global section with the given name
 func (c *Configuration) addSection(fqn string) *Section {
 	section := newSection(fqn, false)
 
