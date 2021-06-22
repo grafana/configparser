@@ -122,7 +122,7 @@ func TestBasic(t *testing.T) {
 						"":                              "",
 						"# also commented out":          "",
 						"; this one too":                "",
-						"; [bar]":                       "",
+						"; [bar]":                       "", // why is a commented out section name marked as an option of a prior section?
 						"# [baz] ; commented out twice": "",
 					},
 				},
