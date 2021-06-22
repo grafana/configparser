@@ -1,3 +1,3 @@
-module github.com/alyu/configparser
+module github.com/grafana/configparser
 
 go 1.13
