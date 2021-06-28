@@ -126,6 +126,26 @@ func TestBasic(t *testing.T) {
 				},
 			},
 		},
+		{
+			title: "values can legally contain special chars",
+			in: `   [foo] # comment here
+				pattern = ^[^;]+\.max(?:;|$)
+				`,
+
+			expErr: false,
+			expGlobal: receivedSection{
+				options: make(map[string]string),
+			},
+			expOther: []receivedSection{
+				receivedSection{
+					name: "foo",
+					options: map[string]string{
+						"pattern": `^[^;]+\.max(?:;|$)`,
+						"":        "",
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range testCases {
