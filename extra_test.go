@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 type receivedSection struct {
@@ -148,9 +146,7 @@ func TestBasic(t *testing.T) {
 			}
 			if !reflect.DeepEqual(c.expOther, gotOther) {
 				fmt.Println("exp other")
-				spew.Dump(c.expOther)
 				fmt.Println("got other")
-				spew.Dump(gotOther)
 				t.Fatalf("testcase %q mismatch\nexp sections %+v\ngot sections %+v", c.title, c.expOther, gotOther)
 			}
 		}
