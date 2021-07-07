@@ -10,8 +10,8 @@
 //  - Options without values (ex: can be used to group a set of hostnames)
 //  - Options without a named section (ex: a simple option=value file)
 //  - Find sections with regexp pattern matching on section names, ex: dc1.east.webservers where regex is '.webservers'
-//  - # or ; as comment delimiter
-//  - = or : as value delimiter
+//  - # as comment delimiter
+//  - = as value delimiter
 //
 package configparser
 
@@ -119,12 +119,12 @@ func Read(fd io.Reader, filePath string) (*Configuration, error) {
 		// [ and ] may not appear after other content (we already checked if it's a prefix above) unless it's in a comment or an option's value
 		posBrack := findEarliestPos(line, "[", "]")
 		if posBrack != -1 {
-			posComment := findEarliestPos(line, "#", ";")
+			posComment := strings.Index(line, "#")
 			if posComment != -1 && posComment < posBrack {
 				// it's in a comment!
 				goto Valid
 			}
-			posVal := findEarliestPos(line, "=", ":")
+			posVal := strings.Index(line, "=")
 			if posVal != -1 && posVal < posBrack {
 				// it's in a value!
 				goto Valid
@@ -374,21 +374,17 @@ func (s *Section) ValueOf(option string) string {
 	return s.options[option]
 }
 
-// ValueOf returns the value of specified option without any trailing comments (denoted by ' #' or ' ;')
+// ValueOf returns the value of specified option without any trailing comments (denoted by ' #')
 func (s *Section) ValueOfWithoutComments(option string) string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	val := s.options[option]
-	pos := strings.Index(val, " #")
+	pos := strings.Index(val, "#")
 	if pos != -1 {
 		val = val[:pos]
 	}
-	pos = strings.Index(val, " ;")
-	if pos != -1 {
-		val = val[:pos]
-	}
-	return val
+	return strings.TrimSpace(val)
 }
 
 // SetValueFor sets the value for the specified option and returns the old value.
@@ -511,8 +507,6 @@ func parseOption(option string) (opt, value string) {
 
 	if i := strings.Index(option, "="); i != -1 {
 		opt, value = split(i, "=")
-	} else if i := strings.Index(option, ":"); i != -1 {
-		opt, value = split(i, ":")
 	} else {
 		opt = option
 	}

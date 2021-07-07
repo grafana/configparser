@@ -9,7 +9,7 @@ import (
 
 type receivedSection struct {
 	name    string
-	options map[string]string
+	options map[string][2]string // 0: full value, 1: s.ValueOfWithoutComments()
 }
 
 func TestBasic(t *testing.T) {
@@ -27,7 +27,7 @@ func TestBasic(t *testing.T) {
 			in:     "",
 			expErr: false,
 			expGlobal: receivedSection{
-				options: make(map[string]string),
+				options: make(map[string][2]string),
 			},
 			expOther: nil,
 		},
@@ -36,12 +36,12 @@ func TestBasic(t *testing.T) {
 			in:     `[]`,
 			expErr: false,
 			expGlobal: receivedSection{
-				options: make(map[string]string),
+				options: make(map[string][2]string),
 			},
 			expOther: []receivedSection{
 				receivedSection{
 					name:    "",
-					options: make(map[string]string),
+					options: make(map[string][2]string),
 				},
 			},
 		},
@@ -56,12 +56,12 @@ func TestBasic(t *testing.T) {
 			in:     `[foo]`,
 			expErr: false,
 			expGlobal: receivedSection{
-				options: make(map[string]string),
+				options: make(map[string][2]string),
 			},
 			expOther: []receivedSection{
 				receivedSection{
 					name:    "foo",
-					options: make(map[string]string),
+					options: make(map[string][2]string),
 				},
 			},
 		},
@@ -71,13 +71,13 @@ func TestBasic(t *testing.T) {
 					`,
 			expErr: false,
 			expGlobal: receivedSection{
-				options: make(map[string]string),
+				options: make(map[string][2]string),
 			},
 			expOther: []receivedSection{
 				receivedSection{
 					name: "foo",
-					options: map[string]string{
-						"": "",
+					options: map[string][2]string{
+						"": [2]string{"", ""},
 					},
 				},
 			},
@@ -87,67 +87,72 @@ func TestBasic(t *testing.T) {
 			in:     `              [[[foo[][]`,
 			expErr: false,
 			expGlobal: receivedSection{
-				options: make(map[string]string),
+				options: make(map[string][2]string),
 			},
 			expOther: []receivedSection{
 				receivedSection{
 					name:    "foo[",
-					options: make(map[string]string),
+					options: make(map[string][2]string),
 				},
 			},
 		},
 		{
 			title: "section with opts and lots of comments", // pretty weird, everything is tracked as-is. something up for debate. https://github.com/alyu/configparser/issues/11
 			in: `   [foo] # comment here
-				foo = bar ; another comment
-				
-				; [bar]
+				foo = bar # another comment
+                                
 
-# [baz] ; commented out twice
+				# [bar]
+
+# [baz] # commented out twice
 # also commented out
-; this one too
 				`,
 
 			expErr: false,
 			expGlobal: receivedSection{
-				options: make(map[string]string),
+				options: make(map[string][2]string),
 			},
 			expOther: []receivedSection{
 				receivedSection{
 					name: "foo",
-					options: map[string]string{
-						"foo":                           "bar ; another comment",
-						"":                              "",
-						"# also commented out":          "",
-						"; this one too":                "",
-						"; [bar]":                       "", // why is a commented out section name marked as an option of a prior section?
-						"# [baz] ; commented out twice": "",
+					options: map[string][2]string{
+						"foo":                           {"bar # another comment", "bar"},
+						"":                              {"", ""},
+						"# also commented out":          {"", ""},
+						"# [bar]":                       {"", ""}, // why is a commented out section name marked as an option of a prior section?
+						"# [baz] # commented out twice": {"", ""},
 					},
 				},
 			},
 		},
 		{
-			title: "values and comments can legally contain special chars",
+			title: "values and comments can legally contain special chars. values can contain any char but # marks a comment",
 			in: `   [foo] # comment here
 				opt1 = ^[^;]+\.max(?:;|$)
-				opt2 : ^[^;]+\.max(?:;|$)
-				opt3 = bar # ^[^;]+\.max(?:;|$)
-				opt4 ; ^[^;]+\.max(?:;|$)
+				opt2 = bar # ^[^;]+\.max(?:;|$)
+				opt3 # ^[^;]+\.max(?:;|$)
+				opt4 = a;b:c=d
+				opt5 = foo#bar#baz
+				opt6 = :;[](){}!@$%^&*=+-_\|/?<>.,"'~#
+				opt7 = :;[](){}!@$%^&*=+-_\|/?<>.,"'~#ab
 				`,
 
 			expErr: false,
 			expGlobal: receivedSection{
-				options: make(map[string]string),
+				options: make(map[string][2]string),
 			},
 			expOther: []receivedSection{
 				receivedSection{
 					name: "foo",
-					options: map[string]string{
-						"opt1":                 `^[^;]+\.max(?:;|$)`,
-						"opt2":                 `^[^;]+\.max(?:;|$)`,
-						"opt3":                 `bar # ^[^;]+\.max(?:;|$)`,
-						`opt4 ; ^[^;]+\.max(?`: ";|$)", // this is undoubtedly not what was intended.
-						"":                     "",
+					options: map[string][2]string{
+						"opt1":                      {`^[^;]+\.max(?:;|$)`, `^[^;]+\.max(?:;|$)`},
+						"opt2":                      {`bar # ^[^;]+\.max(?:;|$)`, `bar`},
+						`opt3 # ^[^;]+\.max(?:;|$)`: {"", ""},
+						"opt4":                      {"a;b:c=d", "a;b:c=d"},
+						"opt5":                      {"foo#bar#baz", "foo"},
+						"opt6":                      {`:;[](){}!@$%^&*=+-_\|/?<>.,"'~#`, `:;[](){}!@$%^&*=+-_\|/?<>.,"'~`},
+						"opt7":                      {`:;[](){}!@$%^&*=+-_\|/?<>.,"'~#ab`, `:;[](){}!@$%^&*=+-_\|/?<>.,"'~`},
+						"":                          {"", ""},
 					},
 				},
 			},
@@ -180,9 +185,14 @@ func TestBasic(t *testing.T) {
 }
 
 func convertSection(s *Section) receivedSection {
+	options := s.Options()
+	receivedOptions := make(map[string][2]string)
+	for k, v := range options {
+		receivedOptions[k] = [2]string{v, s.ValueOfWithoutComments(k)}
+	}
 	return receivedSection{
 		name:    s.Name(),
-		options: s.Options(),
+		options: receivedOptions,
 	}
 }
 

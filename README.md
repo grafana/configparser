@@ -13,9 +13,8 @@ That said, there are still plenty of quirks, making this only useful for a handf
 
 ## Known quirks and problems (mainly inherited from upstream):
 
-* Since values are unquoted strings, it is effectively impossibly to truly distinguish comments from values. We naively split keys from values like so:
-  * split at the first '=', if any.
-  * split at the first ':' if any.
+* Since values are unquoted strings, it is effectively impossibly to truly distinguish comments from values.
+  We simply split keys from values at the first '=' and consider any "#" to mark a comment. Any other chars are allowed.
 * parsed values preserve file comments (but there's now an api to strip them. see below)
 * empty section names are legal.
 * section markers like `[[[foo[][]` are legal, though hard to reason about. (this one results in a section named `foo[`)
@@ -33,3 +32,5 @@ Most of these issues can, and should, be worked around in the caller by doing st
 * stricter validation and parsing of section headers
 * add method to retrieve values without comments (ValueOfWithoutComments() )
 * add lots of unit tests (see `extra_test.go`)
+* only "=" is allowed as key-value delimiter (not ":" because our values may contain it)
+* only "#" is allowed to start comments (not ";" because our values may contain it)
