@@ -127,9 +127,12 @@ func TestBasic(t *testing.T) {
 			},
 		},
 		{
-			title: "values can legally contain special chars",
+			title: "values and comments can legally contain special chars",
 			in: `   [foo] # comment here
-				pattern = ^[^;]+\.max(?:;|$)
+				opt1 = ^[^;]+\.max(?:;|$)
+				opt2 : ^[^;]+\.max(?:;|$)
+				opt3 = bar # ^[^;]+\.max(?:;|$)
+				opt4 ; ^[^;]+\.max(?:;|$)
 				`,
 
 			expErr: false,
@@ -140,8 +143,11 @@ func TestBasic(t *testing.T) {
 				receivedSection{
 					name: "foo",
 					options: map[string]string{
-						"pattern": `^[^;]+\.max(?:;|$)`,
-						"":        "",
+						"opt1":                 `^[^;]+\.max(?:;|$)`,
+						"opt2":                 `^[^;]+\.max(?:;|$)`,
+						"opt3":                 `bar # ^[^;]+\.max(?:;|$)`,
+						`opt4 ; ^[^;]+\.max(?`: ";|$)", // this is undoubtedly not what was intended.
+						"":                     "",
 					},
 				},
 			},
