@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"log"
 	"os"
-	"os/exec"
-	"strings"
 	"testing"
 )
 
@@ -545,18 +543,6 @@ smallfiles = true
 	t.Log(str)
 	if str != expected {
 		t.Error("section string doesn't match expected string")
-	}
-}
-
-func TestSHA(t *testing.T) {
-	out, err := exec.Command("shasum", ConfigNewFilePath).Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	sha := strings.Split(string(out), " ")
-	t.Logf("%v=%v", sha[0], ConfigNewFilePathSHA)
-	if sha[0] != ConfigNewFilePathSHA {
-		t.Error(ConfigNewFilePath + " shasum doees not match!")
 	}
 }
 

@@ -1,95 +1,36 @@
-configparser
+Configparser
 ============
-Package configparser provides a simple parser for reading/writing configuration (INI) files.
 
-Supports reading/writing the INI file format in addition to:
+This is a fork of https://github.com/alyu/configparser
 
-- Reading/writing duplicate section names (ex: MySQL NDB engine's config.ini)
-- Options without values (ex: can be used to group a set of hostnames)
-- Options without a named section (ex: a simple option=value file)
-- Find sections with regexp pattern matching on section names, ex: dc1.east.webservers where regex is '.webservers'
-- # or ; as comment delimiter
-- = or : as value delimiter
+The original libray focuses on parsing ini files into memory, and re-serializing to disk while preserving comments and whitespace.
+To achieve that, the in-memory has some quirks which most people probably don't want.
 
-```go
-package configparser_test
+This fork breaks the writing config files functionality in order to get a more sensible config reading experience.
+That said, there are still plenty of quirks, making this only useful for a handful of carefully picked use cases.
 
-import (
-    "fmt"
-    "github.com/alyu/configparser"
-    "log"
-)
+**You should probably not use this library**
 
-// Read and modify a configuration file
-func Example() {
-    // set a custom delimiter to be used for key/value seperation
-    configparser.Delimiter = "="
-    
-    config, err := configparser.Read("/etc/config.ini")
-    if err != nil {
-        log.Fatal(err)
-    }
-    // Print the full configuration
-    fmt.Println(config)
+## Known quirks and problems (mainly inherited from upstream):
 
-    // get a section
-    section, err := config.Section("MYSQLD DEFAULT")
-    if err != nil {
-        log.Fatal(err)
-    } else {
-        fmt.Printf("TotalSendBufferMemory=%s\n", section.ValueOf("TotalSendBufferMemory"))
+* Since values are unquoted strings, it is effectively impossibly to truly distinguish comments from values.
+  We simply split keys from values at the first '=' and consider any "#" to mark a comment. Any other chars are allowed.
+* parsed values preserve file comments (but there's now an api to strip them. see below)
+* empty section names are legal.
+* section markers like `[[[foo[][]` are legal, though hard to reason about. (this one results in a section named `foo[`)
+* sections without any options are legal.
+* Any characters are allowed in section names
+* epmty lines result in options with empty names
+* Lines with nothing but comments result in "options" with the whole line (including comment delimiter) as name.
 
-        // set new value
-        var oldValue = section.SetValueFor("TotalSendBufferMemory", "256M")
-        fmt.Printf("TotalSendBufferMemory=%s, old value=%s\n", section.ValueOf("TotalSendBufferMemory"), oldValue)
+Most of these issues can, and should, be worked around in the caller by doing strict validation checking, based on your use case.
 
-        // delete option
-        oldValue = section.Delete("DefaultOperationRedoProblemAction")
-        fmt.Println("Deleted DefaultOperationRedoProblemAction: " + oldValue)
+## Main differences with upstream
 
-        // add new options
-        section.Add("innodb_buffer_pool_size", "64G")
-        section.Add("innodb_buffer_pool_instances", "8")
-    }
-
-    // add a new section and options
-    section = config.NewSection("NDBD MGM")
-    section.Add("NodeId", "2")
-    section.Add("HostName", "10.10.10.10")
-    section.Add("PortNumber", "1186")
-    section.Add("ArbitrationRank", "1")
-
-    // find all sections ending with .webservers
-    sections, err := config.Find(".webservers$")
-    if err != nil {
-        log.Fatal(err)
-    }
-    for _, section := range sections {
-        fmt.Print(section)
-    }
-    // or
-    config.PrintSection("dc1.webservers")
-
-    sections, err = config.Delete("NDB_MGMD DEFAULT")
-    if err != nil {
-        log.Fatal(err)
-    }
-    // deleted sections
-    for _, section := range sections {
-        fmt.Print(section)
-    }
-
-    options := section.Options()
-    fmt.Println(options["HostName"])
-
-    // save the new config. the original will be renamed to /etc/config.ini.bak
-    err = configparser.Save(config, "/etc/config.ini")
-    if err != nil {
-        log.Fatal(err)
-    }
-}
-```
-
-notes
-=====
-*  empty section names are legal.  Any characters are allowed.
+* [parsed section names no longer include file comments](https://github.com/alyu/configparser/issues/11)
+* global section is kept separate so you can distinguish it from a section named "global".
+* stricter validation and parsing of section headers
+* add method to retrieve values without comments (ValueOfWithoutComments() )
+* add lots of unit tests (see `extra_test.go`)
+* only "=" is allowed as key-value delimiter (not ":" because our values may contain it)
+* only "#" is allowed to start comments (not ";" because our values may contain it)

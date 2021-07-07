@@ -2,7 +2,7 @@ package configparser_test
 
 import (
 	"fmt"
-	"github.com/alyu/configparser"
+	"github.com/grafana/configparser"
 	"log"
 )
 
